@@ -5,6 +5,115 @@
  */
 
 addToLibrary({
+  $ENDOR_SOCKFS__postset: () => {
+    addAtInit(`
+      importScripts(
+        '/extra/sockets-client.js',
+      );
+
+      onmessage = (e) => {
+        SocketsClient.init(e.data.name, e.data.port);
+
+        self.Module = {};
+        self.Module["onRuntimeInitialized"] = () => {
+          SocketsClient.init(e.data.name, e.data.port);
+        }
+      };
+
+      self.postMessage({ ready: true });
+`);
+  },
+  $ENDOR_SOCKFS__deps: [],
+  $ENDOR_SOCKFS: {
+    mount(mount) {
+    },
+    createSocket(family, type, protocol) {
+      var registerSocketFileDescriptor = (fd, family, type, protocol) => {
+        var sock = {
+          family,
+          type,
+          protocol,
+          server: null,
+          error: null, // Used in getsockopt for SOL_SOCKET/SO_ERROR test
+          peers: {},
+          pending: [],
+          recv_queue: [],
+          sock_ops: ENDOR_SOCKFS.sock_ops,
+          stream: { fd },
+        };
+        endorSockets[fd] = sock;
+      };
+      var nextAvailableSocketFileDescriptor = 0;
+      // Find an available file descriptor for socket
+      for (var i = 0; i < endorSockets.length; ++i) {
+        if (!endorSockets[i]) {
+          nextAvailableSocketFileDescriptor = i;
+          break;
+        }
+      }
+      registerSocketFileDescriptor(nextAvailableSocketFileDescriptor, family, type, protocol);
+      return endorSockets[nextAvailableSocketFileDescriptor];
+    },
+    getSocket(fd) {
+      return endorSockets[i];
+    },
+    stream_ops: {
+      poll(stream) {},
+      ioctl(stream, request, varargs) {},
+      read(stream, buffer, offset, length, position /* ignored */) {},
+      write(stream, buffer, offset, length, position /* ignored */) {},
+      close(stream) {},
+      nextname() {},
+    },
+    sock_ops: {
+      createPeer(sock, addr, port) {},
+      getPeer(sock, addr, port) {},
+      addPeer(sock, peer) {},
+      removePeer(sock, peer) {},
+      handlePeerEvents(sock, peer) {},
+      poll(sock) {},
+      ioctl(sock, request, arg) {},
+      close(sock) {
+        if (sock < 0 || !endorSockets[sock]) {
+          throw new FS.ErrnoError({{{ cDefs.EINVAL }}});
+        }
+        endorSockets[sock] = undefined;
+      },
+      bind(sock, addr, port) {},
+      connect(sock, addr, port) {
+        // Our universe --for now-- is ["192.168.10.20/32"]
+        if (addr != "192.168.10.20") {
+          throw new FS.ErrnoError({{{ cDefs.EHOSTUNREACH }}});
+        }
+      },
+      listen(sock, addr, port) {
+        // Client-side only for now
+      },
+      accept(listensock) {
+        // Client-side only for now
+      },
+      getname(sock, peer) {},
+      sendmsg(sock, buffer, offset, length, addr, port) {
+        if (sock.type === {{{ cDefs.SOCK_DGRAM }}}) {
+          // UDP is not implemented yet
+          throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
+        }
+        // Support addresses with only port or address provided
+        if (addr === undefined || port === undefined) {
+          addr = sock.daddr;
+          port = sock.dport;
+        }
+        SocketsClient.send(addr, port, data)
+      },
+      recvmsg(sock, length) {
+        if (sock.type === {{{ cDefs.SOCK_DGRAM }}}) {
+          // UDP is not implemented yet
+          throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
+        }
+        SocketsClient.recv(addr, port, length)
+      },
+    }
+  },
   $SOCKFS__postset: () => {
     addAtInit('SOCKFS.root = FS.mount(SOCKFS, {}, null);');
   },
@@ -216,6 +325,11 @@ addToLibrary({
 #if SOCKET_DEBUG
             dbg('connect: ' + url + ', ' + subProtocols.toString());
 #endif
+            var endorSockets = [];
+            for (var i = 0; i < 64; ++i) {
+              endorSockets.push(undefined);
+            }
+
             // If node we use the ws library.
             var WebSocketConstructor;
 #if ENVIRONMENT_MAY_BE_NODE

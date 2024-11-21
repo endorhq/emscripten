@@ -5,4 +5,4 @@ a.out.js: main.c
 
 .PHONY: clean
 clean:
-	rm a.out.js a.out.wasm
+	rm -f a.out.js a.out.wasm
