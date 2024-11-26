@@ -11,6 +11,8 @@
 #include <netdb.h> /* struct hostent, gethostbyname */
 #include <arpa/inet.h> /* inet_addr */
 
+#include <emscripten.h>
+
 void error(const char *msg) { perror(msg); exit(1); }
 
 int main(int argc,char *argv[])
@@ -60,19 +62,21 @@ int main(int argc,char *argv[])
     } while (sent < total);
 
     /* receive the response */
-    memset(response, 0, sizeof(response));
-    total = sizeof(response) - 1;
-    printf("reading response of size %d\n", total);
-    received = 0;
-    do {
+    /* while (1) { */
+      memset(response, 0, sizeof(response));
+      total = sizeof(response) - 1;
+      received = 0;
+      do {
         bytes = read(sockfd, response + received, total - received);
         printf("read %d bytes\n", bytes);
         if (bytes < 0)
-            error("ERROR reading response from socket");
+          error("ERROR reading response from socket");
         if (bytes == 0)
-            break;
+          break;
         received += bytes;
-    } while (received < total);
+      } while (received < total);
+    /*   emscripten_sleep(1000); */
+    /* } */
 
     /*
      * if the number of received bytes is the total size of the

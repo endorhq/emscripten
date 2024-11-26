@@ -5,7 +5,9 @@
  */
 
 addToLibrary({
-  $ENDOR_SOCKFS__postset: () => {},
+  $ENDOR_SOCKFS__postset: () => {
+    addAtInit('ENDOR_SOCKFS.root = FS.mount(ENDOR_SOCKFS, {}, null);');
+  },
   $ENDOR_SOCKFS__deps: ['$FS'],
   $ENDOR_SOCKFS: {
     mount(mount) {
@@ -94,11 +96,15 @@ addToLibrary({
       },
       read(stream, buffer, offset, length, position /* ignored */) {
         console.log("ereslibre -- stream_ops.read;");
-        return SocketsClient.recv("192.168.10.20", 80, length);
+        let read = SocketsClient.recv("192.168.10.20", 80, length);
+        console.log("ereslibre -- read: ", read);
+        return read;
       },
       write(stream, buffer, offset, length, position /* ignored */) {
         console.log("ereslibre -- stream_ops.write; ", buffer);
-        return SocketsClient.send("192.168.10.20", 80, buffer);
+        let written = SocketsClient.send("192.168.10.20", 80, buffer);
+        console.log("ereslibre -- written: ", written);
+        return written;
       },
       close(stream) {
         console.log("ereslibre -- stream_ops.close;");
