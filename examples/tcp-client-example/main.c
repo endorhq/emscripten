@@ -48,6 +48,7 @@ int main(int argc,char *argv[])
     /* send the request */
     total = strlen(message);
     sent = 0;
+    printf("writing %s (%lu characters)\n", message, strlen(message));
     do {
         bytes = write(sockfd, message + sent, total - sent);
         printf("written %d bytes to socket\n", bytes);
@@ -61,14 +62,16 @@ int main(int argc,char *argv[])
     /* receive the response */
     memset(response, 0, sizeof(response));
     total = sizeof(response) - 1;
+    printf("reading response of size %d\n", total);
     received = 0;
     do {
         bytes = read(sockfd, response + received, total - received);
+        printf("read %d bytes\n", bytes);
         if (bytes < 0)
             error("ERROR reading response from socket");
         if (bytes == 0)
             break;
-        received+=bytes;
+        received += bytes;
     } while (received < total);
 
     /*
