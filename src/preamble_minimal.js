@@ -126,6 +126,11 @@ var runtimeExited = false;
 var runtimeInitialized = false;
 #endif
 
+var endorSockets = [];
+for (var i = 0; i < 64; ++i) {
+  endorSockets.push(undefined);
+}
+
 #include "runtime_math.js"
 #include "memoryprofiler.js"
 #include "runtime_exceptions.js"

@@ -179,6 +179,11 @@ var __RELOC_FUNCS__ = [];
 
 var runtimeInitialized = false;
 
+var endorSockets = [];
+for (var i = 0; i < 64; ++i) {
+  endorSockets.push(undefined);
+}
+
 #if EXIT_RUNTIME
 var runtimeExited = false;
 #endif

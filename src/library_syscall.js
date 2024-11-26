@@ -315,9 +315,9 @@ var SyscallsLibrary = {
 // When building with WASMFS the socket syscalls are implemented natively in
 // libwasmfs.a.
 #if PROXY_POSIX_SOCKETS == 0 && WASMFS == 0
-  $getSocketFromFD__deps: ['$SOCKFS', '$FS'],
+  $getSocketFromFD__deps: ['$ENDOR_SOCKFS', '$FS'],
   $getSocketFromFD: (fd) => {
-    var socket = SOCKFS.getSocket(fd);
+    var socket = ENDOR_SOCKFS.getSocket(fd);
     if (!socket) throw new FS.ErrnoError({{{ cDefs.EBADF }}});
 #if SYSCALL_DEBUG
     dbg(`    (socket: "${socket.path}")`);
@@ -337,9 +337,9 @@ var SyscallsLibrary = {
 #endif
     return info;
   },
-  __syscall_socket__deps: ['$SOCKFS'],
+  __syscall_socket__deps: ['$ENDOR_SOCKFS'],
   __syscall_socket: (domain, type, protocol) => {
-    var sock = SOCKFS.createSocket(domain, type, protocol);
+    var sock = ENDOR_SOCKFS.createSocket(domain, type, protocol);
 #if ASSERTIONS
     assert(sock.stream.fd < 64); // XXX ? select() assumes socket fd values are in 0..63
 #endif
