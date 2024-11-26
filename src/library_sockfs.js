@@ -60,6 +60,8 @@ addToLibrary({
       );
     },
     getSocket(fd) {
+      console.log("ereslibre -- file descriptor: ", fd);
+      console.log("ereslibre -- endor sockets: ", endorSockets[fd]);
       return endorSockets[fd];
     },
     stream_ops: {
@@ -110,14 +112,14 @@ addToLibrary({
           addr = sock.daddr;
           port = sock.dport;
         }
-        SocketsClient.send(addr, port, data)
+        return SocketsClient.send(addr, port, data)
       },
       recvmsg(sock, length) {
         if (sock.type === {{{ cDefs.SOCK_DGRAM }}}) {
           // UDP is not implemented yet
           throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
         }
-        SocketsClient.recv(addr, port, length)
+        return SocketsClient.recv(addr, port, length)
       },
     }
   },
