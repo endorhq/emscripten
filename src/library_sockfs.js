@@ -20,14 +20,22 @@ addToLibrary({
         }
       };
 
+      ENDOR_SOCKFS.root = FS.mount(ENDOR_SOCKFS, {}, null);
+
       self.postMessage({ ready: true });
 `);
   },
-  $ENDOR_SOCKFS__deps: [],
+  $ENDOR_SOCKFS__deps: ['$FS'],
   $ENDOR_SOCKFS: {
     mount(mount) {
+      console.log("ereslibre -- mount;");
+      Module['endor_sockets'] = (Module['endor_sockets'] &&
+                             ('object' === typeof Module['endor_sockets'])) ? Module['endor_sockets'] : {};
+
+      return FS.createNode(null, '/', {{{ cDefs.S_IFDIR }}} | 511 /* 0777 */, 0);
     },
     createSocket(family, type, protocol) {
+      console.log("ereslibre -- createSocket;");
       var registerSocketFileDescriptor = (fd, family, type, protocol) => {
         var sock = {
           family,
@@ -39,9 +47,27 @@ addToLibrary({
           pending: [],
           recv_queue: [],
           sock_ops: ENDOR_SOCKFS.sock_ops,
-          stream: { fd },
         };
+
+        // create the filesystem node to store the socket structure
+        var name = ENDOR_SOCKFS.nextname(fd);
+        var node = FS.createNode(ENDOR_SOCKFS.root, name, {{{ cDefs.S_IFSOCK }}}, 0);
+        node.sock = sock;
+
+        // and the wrapping stream that enables library functions such
+        // as read and write to indirectly interact with the socket
+        var stream = FS.createStream({
+          path: name,
+          node,
+          flags: {{{ cDefs.O_RDWR }}},
+          seekable: false,
+          stream_ops: ENDOR_SOCKFS.stream_ops
+        });
+        // map the new stream to the socket structure (sockets have a 1:1
+        // relationship with a stream)
+        sock.stream = stream;
         endorSockets[fd] = sock;
+
         return sock;
       };
       var nextAvailableSocketFileDescriptor = 0;
@@ -60,27 +86,56 @@ addToLibrary({
       );
     },
     getSocket(fd) {
+      console.log("ereslibre -- getSocket;");
       console.log("ereslibre -- file descriptor: ", fd);
       console.log("ereslibre -- endor sockets: ", endorSockets[fd]);
       return endorSockets[fd];
     },
     stream_ops: {
-      poll(stream) {},
-      ioctl(stream, request, varargs) {},
-      read(stream, buffer, offset, length, position /* ignored */) {},
-      write(stream, buffer, offset, length, position /* ignored */) {},
-      close(stream) {},
-      nextname() {},
+      poll(stream) {
+        console.log("ereslibre -- stream_ops.poll;");
+      },
+      ioctl(stream, request, varargs) {
+        console.log("ereslibre -- stream_ops.ioctl;");
+      },
+      read(stream, buffer, offset, length, position /* ignored */) {
+        console.log("ereslibre -- stream_ops.read;");
+      },
+      write(stream, buffer, offset, length, position /* ignored */) {
+        console.log("ereslibre -- stream_ops.write;");
+      },
+      close(stream) {
+        console.log("ereslibre -- stream_ops.close;");
+      },
+    },
+    nextname(fd) {
+      console.log("ereslibre -- stream_ops.nextname;");
+      return 'endor_socket[' + fd + ']';
     },
     sock_ops: {
-      createPeer(sock, addr, port) {},
-      getPeer(sock, addr, port) {},
-      addPeer(sock, peer) {},
-      removePeer(sock, peer) {},
-      handlePeerEvents(sock, peer) {},
-      poll(sock) {},
-      ioctl(sock, request, arg) {},
+      createPeer(sock, addr, port) {
+        console.log("ereslibre -- sock_ops.createPeer;");
+      },
+      getPeer(sock, addr, port) {
+        console.log("ereslibre -- sock_ops.getPeer;");
+      },
+      addPeer(sock, peer) {
+        console.log("ereslibre -- sock_ops.addPeer;");
+      },
+      removePeer(sock, peer) {
+        console.log("ereslibre -- sock_ops.removePeer;");
+      },
+      handlePeerEvents(sock, peer) {
+        console.log("ereslibre -- sock_ops.handlePeerEvents;");
+      },
+      poll(sock) {
+        console.log("ereslibre -- sock_ops.poll;");
+      },
+      ioctl(sock, request, arg) {
+        console.log("ereslibre -- sock_ops.ioctl;");
+      },
       close(sock) {
+        console.log("ereslibre -- sock_ops.close;");
         if (sock < 0 || !endorSockets[sock]) {
           throw new FS.ErrnoError({{{ cDefs.EINVAL }}});
         }
@@ -88,8 +143,10 @@ addToLibrary({
       },
       bind(sock, addr, port) {
         // Client-side only for now
+        console.log("ereslibre -- sock_ops.bind;");
       },
       connect(sock, addr, port) {
+        console.log("ereslibre -- sock_ops.connect;");
         // Our universe --for now-- is ["192.168.10.20/32"]
         if (addr != "192.168.10.20") {
           throw new FS.ErrnoError({{{ cDefs.EHOSTUNREACH }}});
@@ -97,12 +154,17 @@ addToLibrary({
       },
       listen(sock, addr, port) {
         // Client-side only for now
+        console.log("ereslibre -- sock_ops.listen;");
       },
       accept(listensock) {
         // Client-side only for now
+        console.log("ereslibre -- sock_ops.accept;");
       },
-      getname(sock, peer) {},
+      getname(sock, peer) {
+        console.log("ereslibre -- sock_ops.getname;");
+      },
       sendmsg(sock, buffer, offset, length, addr, port) {
+        console.log("ereslibre -- sock_ops.sendmsg;");
         if (sock.type === {{{ cDefs.SOCK_DGRAM }}}) {
           // UDP is not implemented yet
           throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
@@ -115,6 +177,7 @@ addToLibrary({
         return SocketsClient.send(addr, port, data)
       },
       recvmsg(sock, length) {
+        console.log("ereslibre -- sock_ops.recvmsg;");
         if (sock.type === {{{ cDefs.SOCK_DGRAM }}}) {
           // UDP is not implemented yet
           throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
