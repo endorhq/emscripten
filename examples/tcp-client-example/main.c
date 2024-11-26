@@ -11,14 +11,14 @@
 #include <netdb.h> /* struct hostent, gethostbyname */
 #include <arpa/inet.h> /* inet_addr */
 
-void error(const char *msg) { perror(msg); exit(0); }
+void error(const char *msg) { perror(msg); exit(1); }
 
 int main(int argc,char *argv[])
 {
     /* first what are we going to send and where are we going to send it? */
     int portno = 80;
     char *host = "192.168.10.20";
-    char *message = "GET / HTTP/1.0\r\n\r\n";
+    char *message = "GET /from-c HTTP/1.0\r\n\r\n";
 
     struct hostent *server;
     struct sockaddr_in serv_addr;
@@ -29,21 +29,28 @@ int main(int argc,char *argv[])
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) error("ERROR opening socket");
 
+    printf("sockfd is: %d\n", sockfd);
+
     /* fill in the structure */
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
     serv_addr.sin_addr.s_addr = inet_addr(host);
 
+    printf("about to connect\n");
+
     /* connect the socket */
     if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
         error("ERROR connecting");
+
+    printf("connected\n");
 
     /* send the request */
     total = strlen(message);
     sent = 0;
     do {
-        bytes = write(sockfd, message+sent, total-sent);
+        bytes = write(sockfd, message + sent, total - sent);
+        printf("written %d bytes to socket\n", bytes);
         if (bytes < 0)
             error("ERROR writing message to socket");
         if (bytes == 0)

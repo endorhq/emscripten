@@ -11,8 +11,6 @@ addToLibrary({
         '/extra/sockets-client.js',
       );
 
-      ENDOR_SOCKFS.root = FS.mount(ENDOR_SOCKFS, {}, null);
-
       onmessage = (e) => {
         SocketsClient.init(e.data.name, e.data.port);
 
@@ -25,7 +23,7 @@ addToLibrary({
       self.postMessage({ ready: true });
 `);
   },
-  $ENDOR_SOCKFS__deps: ['$FS'],
+  $ENDOR_SOCKFS__deps: [],
   $ENDOR_SOCKFS: {
     mount(mount) {
     },
@@ -41,22 +39,10 @@ addToLibrary({
           pending: [],
           recv_queue: [],
           sock_ops: ENDOR_SOCKFS.sock_ops,
+          stream: { fd },
         };
-        // create the filesystem node to store the socket structure
-        var name = 'endorsocket[' + fd + ']';
-        var node = FS.createNode(ENDOR_SOCKFS.root, name, {{{ cDefs.S_IFSOCK }}}, 0);
-        node.sock = sock;
-        // and the wrapping stream that enables library functions such
-        // as read and write to indirectly interact with the socket
-        var stream = FS.createStream({
-          path: name,
-          node,
-          flags: {{{ cDefs.O_RDWR }}},
-          seekable: false,
-          stream_ops: ENDOR_SOCKFS.stream_ops
-        });
-        sock.stream = stream;
         endorSockets[fd] = sock;
+        return sock;
       };
       var nextAvailableSocketFileDescriptor = 0;
       // Find an available file descriptor for socket
@@ -66,11 +52,15 @@ addToLibrary({
           break;
         }
       }
-      registerSocketFileDescriptor(nextAvailableSocketFileDescriptor, family, type, protocol);
-      return endorSockets[nextAvailableSocketFileDescriptor];
+      return registerSocketFileDescriptor(
+        nextAvailableSocketFileDescriptor,
+        family,
+        type,
+        protocol
+      );
     },
     getSocket(fd) {
-      return endorSockets[i];
+      return endorSockets[fd];
     },
     stream_ops: {
       poll(stream) {},
@@ -94,7 +84,9 @@ addToLibrary({
         }
         endorSockets[sock] = undefined;
       },
-      bind(sock, addr, port) {},
+      bind(sock, addr, port) {
+        // Client-side only for now
+      },
       connect(sock, addr, port) {
         // Our universe --for now-- is ["192.168.10.20/32"]
         if (addr != "192.168.10.20") {
