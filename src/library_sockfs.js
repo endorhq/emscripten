@@ -97,12 +97,22 @@ addToLibrary({
       read(stream, buffer, offset, length, position /* ignored */) {
         console.log("ereslibre -- stream_ops.read;");
         let read = SocketsClient.recv("192.168.10.20", 80, length);
+        if (read == null) {
+          console.log("ereslibre -- read is null");
+          throw new FS.ErrnoError({{{ cDefs.EAGAIN }}});
+        }
+        if (read.length <= 0) {
+          // socket is closed
+          return 0;
+        }
         console.log("ereslibre -- read: ", read);
-        return read;
+        buffer.set(read, offset);
+        return read.length;
       },
       write(stream, buffer, offset, length, position /* ignored */) {
         console.log("ereslibre -- stream_ops.write; ", buffer);
-        let written = SocketsClient.send("192.168.10.20", 80, buffer);
+        let data = buffer.slice(offset, offset + length);
+        let written = SocketsClient.send("192.168.10.20", 80, data);
         console.log("ereslibre -- written: ", written);
         return written;
       },
@@ -185,7 +195,7 @@ addToLibrary({
           // UDP is not implemented yet
           throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
         }
-        return SocketsClient.recv(addr, port, length)
+        return SocketsClient.recv(addr, port, length);
       },
     }
   },

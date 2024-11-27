@@ -2,6 +2,7 @@
  * Originally taken from https://stackoverflow.com/questions/22077802/simple-c-example-of-doing-an-http-post-and-consuming-the-response
  */
 
+#include <errno.h>
 #include <stdio.h> /* printf, sprintf */
 #include <stdlib.h> /* exit */
 #include <unistd.h> /* read, write, close */
@@ -20,7 +21,7 @@ int main(int argc,char *argv[])
     /* first what are we going to send and where are we going to send it? */
     int portno = 80;
     char *host = "192.168.10.20";
-    char *message = "GET /from-c HTTP/1.0\r\n\r\n";
+    char *message = "GET / HTTP/1.0\r\n\r\n";
 
     struct hostent *server;
     struct sockaddr_in serv_addr;
@@ -67,7 +68,13 @@ int main(int argc,char *argv[])
       total = sizeof(response) - 1;
       received = 0;
       do {
+        errno = 0;
         bytes = read(sockfd, response + received, total - received);
+        if (errno == EAGAIN) {
+          printf("EAGAIN\n");
+          emscripten_sleep(5000);
+          continue;
+        }
         printf("read %d bytes\n", bytes);
         if (bytes < 0)
           error("ERROR reading response from socket");
@@ -75,7 +82,7 @@ int main(int argc,char *argv[])
           break;
         received += bytes;
       } while (received < total);
-    /*   emscripten_sleep(1000); */
+      /* emscripten_sleep(1000); */
     /* } */
 
     /*
