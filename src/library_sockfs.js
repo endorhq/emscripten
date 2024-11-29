@@ -5,6 +5,149 @@
  */
 
 addToLibrary({
+  $ENDOR_SOCKFS__postset: () => {
+    addAtInit('ENDOR_SOCKFS.root = FS.mount(ENDOR_SOCKFS, {}, null);');
+  },
+  $ENDOR_SOCKFS__deps: ['$FS'],
+  $ENDOR_SOCKFS: {
+    mount(mount) {
+      Module['endor_sockets'] = (Module['endor_sockets'] &&
+                             ('object' === typeof Module['endor_sockets'])) ? Module['endor_sockets'] : {};
+
+      return FS.createNode(null, '/', {{{ cDefs.S_IFDIR }}} | 511 /* 0777 */, 0);
+    },
+    createSocket(family, type, protocol) {
+      type &= ~{{{ cDefs.SOCK_CLOEXEC | cDefs.SOCK_NONBLOCK }}}; // Some applications may pass it; it makes no sense for a single process.
+      // TODO: add support for UDP
+      if ((type != {{{ cDefs.SOCK_STREAM }}}) || (protocol && protocol != {{{ cDefs.IPPROTO_TCP }}})) {
+        throw new FS.ErrnoError({{{ cDefs.EPROTONOSUPPORT }}});
+      }
+
+      var sock = {
+        family,
+        type,
+        protocol,
+        sock_ops: ENDOR_SOCKFS.sock_ops,
+      };
+
+      // create the filesystem node to store the socket structure
+      var name = ENDOR_SOCKFS.nextname();
+      var node = FS.createNode(ENDOR_SOCKFS.root, name, {{{ cDefs.S_IFSOCK }}}, 0);
+      node.sock = sock;
+
+      // and the wrapping stream that enables library functions such
+      // as read and write to indirectly interact with the socket
+      var stream = FS.createStream({
+        path: name,
+        node,
+        flags: {{{ cDefs.O_RDWR }}},
+        seekable: false,
+        stream_ops: ENDOR_SOCKFS.stream_ops
+      });
+      // map the new stream to the socket structure (sockets have a 1:1
+      // relationship with a stream)
+      sock.stream = stream;
+
+      return sock;
+    },
+    getSocket(fd) {
+      var stream = FS.getStream(fd);
+      if (!stream || !FS.isSocket(stream.node.mode)) {
+        return null;
+      }
+      return stream.node.sock;
+    },
+    stream_ops: {
+      poll(stream) {
+        var sock = stream.node.sock;
+        return sock.sock_ops.poll(sock);
+      },
+      ioctl(stream, request, varargs) {
+        var sock = stream.node.sock;
+        return sock.sock_ops.ioctl(sock, request, varargs);
+      },
+      read(stream, buffer, offset, length, position /* ignored */) {
+        var sock = stream.node.sock;
+        var msg = sock.sock_ops.recvmsg(sock, length);
+        buffer.set(msg, offset);
+        return msg.length;
+      },
+      write(stream, buffer, offset, length, position /* ignored */) {
+        var sock = stream.node.sock;
+        return sock.sock_ops.sendmsg(sock, buffer, offset, length);
+      },
+      close(stream) {
+        var sock = stream.node.sock;
+        sock.sock_ops.close(sock);
+      },
+    },
+    nextname() {
+      if (!ENDOR_SOCKFS.nextname.current) {
+        ENDOR_SOCKFS.nextname.current = 0;
+      }
+      return 'endor_socket[' + (ENDOR_SOCKFS.nextname.current++) + ']';
+    },
+    sock_ops: {
+      poll(sock) {
+        // No polling support
+        return 0;
+      },
+      ioctl(sock, request, arg) {
+        // No ioctl is supported
+        return {{{ cDefs.EINVAL }}};
+      },
+      close(sock) {
+        return 0;
+      },
+      bind(sock, addr, port) {
+        // Client-side only for now
+        throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
+      },
+      connect(sock, addr, port) {
+        // Our universe --for now-- is ["192.168.10.0/24"]
+        if (!addr.startsWith("192.168.10.")) {
+          throw new FS.ErrnoError({{{ cDefs.EHOSTUNREACH }}});
+        }
+        sock.daddr = addr;
+        sock.dport = port;
+      },
+      listen(sock, addr, port) {
+        // Client-side only for now
+        throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
+      },
+      accept(listensock) {
+        // Client-side only for now
+        throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
+      },
+      getname(sock, peer) {
+        throw new FS.ErrnoError({{{ cDefs.ENOTCONN }}});
+      },
+      sendmsg(sock, buffer, offset, length, addr, port) {
+        if (sock.type === {{{ cDefs.SOCK_DGRAM }}}) {
+          // UDP is not implemented yet
+          throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
+        }
+        // Support addresses with only port or address provided
+        if (addr === undefined || port === undefined) {
+          addr = sock.daddr;
+          port = sock.dport;
+        }
+        const data = buffer.slice(offset, offset + length);
+        return SocketsClient.send(addr, port, data)
+      },
+      recvmsg(sock, length) {
+        if (sock.type === {{{ cDefs.SOCK_DGRAM }}}) {
+          // UDP is not implemented yet
+          throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
+        }
+        const res = SocketsClient.recv(sock.daddr, sock.dport, length);
+        if (res == null) {
+          throw new FS.ErrnoError({{{ cDefs.EAGAIN }}});
+        }
+        return res
+      },
+    }
+  },
   $SOCKFS__postset: () => {
     addAtInit('SOCKFS.root = FS.mount(SOCKFS, {}, null);');
   },
@@ -98,6 +241,7 @@ addToLibrary({
     },
     // node and stream ops are backend agnostic
     stream_ops: {
+
       poll(stream) {
         var sock = stream.node.sock;
         return sock.sock_ops.poll(sock);
@@ -216,6 +360,7 @@ addToLibrary({
 #if SOCKET_DEBUG
             dbg('connect: ' + url + ', ' + subProtocols.toString());
 #endif
+
             // If node we use the ws library.
             var WebSocketConstructor;
 #if ENVIRONMENT_MAY_BE_NODE
