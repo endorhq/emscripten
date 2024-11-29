@@ -376,6 +376,15 @@ def get_clang_flags(user_args):
   if settings.INLINING_LIMIT:
     flags.append('-fno-inline-functions')
 
+  # In emscripten we currently disable bulk memory by default.
+  # This should be removed/updated when we als update the default browser targets.
+  if '-mbulk-memory' not in user_args and '-mno-bulk-memory' not in user_args:
+    # Bulk memory may be enabled via threads or directly via -s.
+    if not settings.BULK_MEMORY:
+      flags.append('-mno-bulk-memory')
+  if '-mnontrapping-fptoint' not in user_args and '-mno-nontrapping-fptoint' not in user_args:
+    flags.append('-mno-nontrapping-fptoint')
+
   if settings.RELOCATABLE and '-fPIC' not in user_args:
     flags.append('-fPIC')
 
