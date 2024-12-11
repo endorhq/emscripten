@@ -8,7 +8,7 @@ a.out.js: main.c
 # Phony because we are working with the compiler generated code
 .PHONY: a.out.debug.js
 a.out.debug.js: main.c
-	../../emcc -g -sASYNCIFY -sSOCKET_DEBUG -sSYSCALL_DEBUG $< -o $@
+	../../emcc -g -sASYNCIFY -sSOCKET_DEBUG -sSYSCALL_DEBUG -sASYNCIFY_DEBUG=1 $< -o $@
 
 .PHONY: clean
 clean:

@@ -12,8 +12,6 @@
 #include <netdb.h> /* struct hostent, gethostbyname */
 #include <arpa/inet.h> /* inet_addr */
 
-#include <emscripten.h>
-
 void error(const char *msg) { perror(msg); exit(1); }
 
 int main(int argc,char *argv[])
@@ -71,7 +69,6 @@ int main(int argc,char *argv[])
       bytes = read(sockfd, response + received, total - received);
       if (errno == EAGAIN) {
         printf("EAGAIN\n");
-        emscripten_sleep(1000);
         continue;
       }
       printf("read %d bytes\n", bytes);
