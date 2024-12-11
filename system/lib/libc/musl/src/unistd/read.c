@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include "syscall.h"
+#include "emscripten.h"
 
 ssize_t read(int fd, void *buf, size_t count)
 {
@@ -9,6 +10,7 @@ ssize_t read(int fd, void *buf, size_t count)
 		.buf_len = count
 	};
 	size_t num;
+	emscripten_sleep(1);
 	if (__wasi_syscall_ret(__wasi_fd_read(fd, &iov, 1, &num))) {
 		return -1;
 	}

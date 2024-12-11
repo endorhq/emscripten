@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include "syscall.h"
+#include "emscripten.h"
 
 ssize_t pread(int fd, void *buf, size_t size, off_t ofs)
 {
@@ -9,6 +10,7 @@ ssize_t pread(int fd, void *buf, size_t size, off_t ofs)
 		.buf_len = size
 	};
 	size_t num;
+	emscripten_sleep(1);
 	if (__wasi_syscall_ret(__wasi_fd_pread(fd, &iov, 1, ofs, &num))) {
 		return -1;
 	}
