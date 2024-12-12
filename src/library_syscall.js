@@ -407,7 +407,7 @@ var SyscallsLibrary = {
   __syscall_recvfrom__deps: ['$getSocketFromFD', '$writeSockaddr', '$DNS'],
   __syscall_recvfrom: (fd, buf, len, flags, addr, addrlen) => {
     var sock = getSocketFromFD(fd);
-    var msg = sock.sock_ops.recvmsg(sock, len);
+    var msg = sock.sock_ops.recvmsg(sock, len, flags);
     if (!msg) return 0; // socket is closed
     if (addr) {
       var errno = writeSockaddr(addr, sock.family, DNS.lookup_name(msg.addr), msg.port, addrlen);

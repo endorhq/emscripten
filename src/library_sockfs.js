@@ -135,12 +135,16 @@ addToLibrary({
         const data = buffer.slice(offset, offset + length);
         return SocketsClient.send(addr, port, data)
       },
-      recvmsg(sock, length) {
+      recvmsg(sock, length, flags = 0) {
+        // TODO: Move this constant to cDefs
+
+        const MSG_PEEK = 0x02;
+        
         if (sock.type === {{{ cDefs.SOCK_DGRAM }}}) {
           // UDP is not implemented yet
           throw new FS.ErrnoError({{{ cDefs.EOPNOTSUPP }}});
         }
-        const res = SocketsClient.recv(sock.daddr, sock.dport, length);
+        const res = SocketsClient.recv(sock.daddr, sock.dport, length, flags & MSG_PEEK);
         if (res == null) {
           throw new FS.ErrnoError({{{ cDefs.EAGAIN }}});
         }
