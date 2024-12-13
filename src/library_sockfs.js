@@ -69,8 +69,8 @@ addToLibrary({
       read(stream, buffer, offset, length, position /* ignored */) {
         var sock = stream.node.sock;
         var msg = sock.sock_ops.recvmsg(sock, length);
-        buffer.set(msg, offset);
-        return msg.length;
+        buffer.set(msg.buffer, offset);
+        return msg.buffer.length;
       },
       write(stream, buffer, offset, length, position /* ignored */) {
         var sock = stream.node.sock;
@@ -184,7 +184,10 @@ addToLibrary({
         if (res == null) {
           throw new FS.ErrnoError({{{ cDefs.EAGAIN }}});
         }
-        return res
+        
+        return {
+          buffer: new Uint8Array(res, 0, Math.min(length, res.length))
+        }
       },
     }
   },
