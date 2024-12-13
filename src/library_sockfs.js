@@ -89,8 +89,44 @@ addToLibrary({
     },
     sock_ops: {
       poll(sock) {
-        // No polling support
-        return 0;
+        if (sock.type === {{{ cDefs.SOCK_STREAM }}} && sock.server) {
+          // listen sockets should only say they're available for reading
+          // if there are pending clients.
+          return sock.pending.length ? ({{{ cDefs.POLLRDNORM }}} | {{{ cDefs.POLLIN }}}) : 0;
+        }
+
+        var mask = 0;
+        var dest = sock.type === {{{ cDefs.SOCK_STREAM }}};
+        // Just check if the socket has data available.
+        var recv_queue = SocketsClient.recv(sock.daddr, sock.dport, 1, true);
+
+        // TODO: Properly identify the socket status based on the Endor status.
+        if (recv_queue.length > 0 || !dest) {
+          mask |= ({{{ cDefs.POLLRDNORM }}} | {{{ cDefs.POLLIN }}});
+        }
+
+        mask |= {{{ cDefs.POLLOUT }}};
+
+        // For now, we don't handle the close
+        
+        // if (sock.recv_queue.length ||
+        //     !dest ||  // connection-less sockets are always ready to read
+        //     (dest && dest.socket.readyState === dest.socket.CLOSING) ||
+        //     (dest && dest.socket.readyState === dest.socket.CLOSED)) {  // let recv return 0 once closed
+        //   mask |= ({{{ cDefs.POLLRDNORM }}} | {{{ cDefs.POLLIN }}});
+        // }
+
+        // if (!dest ||  // connection-less sockets are always ready to write
+        //     (dest && dest.socket.readyState === dest.socket.OPEN)) {
+        //   mask |= {{{ cDefs.POLLOUT }}};
+        // }
+
+        // if ((dest && dest.socket.readyState === dest.socket.CLOSING) ||
+        //     (dest && dest.socket.readyState === dest.socket.CLOSED)) {
+        //   mask |= {{{ cDefs.POLLHUP }}};
+        // }
+
+        return mask;
       },
       ioctl(sock, request, arg) {
         // No ioctl is supported
