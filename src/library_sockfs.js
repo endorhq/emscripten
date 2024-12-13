@@ -101,7 +101,7 @@ addToLibrary({
         var recv_queue = SocketsClient.recv(sock.daddr, sock.dport, 1, true);
 
         // TODO: Properly identify the socket status based on the Endor status.
-        if (recv_queue.length > 0 || !dest) {
+        if ((recv_queue && recv_queue.length > 0) || !dest) {
           mask |= ({{{ cDefs.POLLRDNORM }}} | {{{ cDefs.POLLIN }}});
         }
 
