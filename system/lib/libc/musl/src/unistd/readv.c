@@ -6,7 +6,6 @@ ssize_t readv(int fd, const struct iovec *iov, int count)
 {
 #if __EMSCRIPTEN__
 	size_t num;
-	emscripten_sleep(1000);
 	if (__wasi_syscall_ret(__wasi_fd_read(fd, (struct __wasi_iovec_t*)iov, count, &num))) {
 		num = -1;
 	}
