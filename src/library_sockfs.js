@@ -146,6 +146,9 @@ addToLibrary({
         }
         sock.daddr = addr;
         sock.dport = port;
+
+        // Associate the socket with the addr and port.
+        SocketsClient.connect(sock.stream.fd, addr, port);
       },
       listen(sock, addr, port) {
         // Client-side only for now
